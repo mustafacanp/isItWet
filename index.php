@@ -3,6 +3,7 @@ header('Content-Type: application/json');
 
 if(isset($_GET['coordinates']) && $_GET['coordinates'] !== ''){
 	$c = $_GET['coordinates'];
+	$c = str_replace(' ','',$c);
 	$res = isItWet($c);
 } else {
 	$res = [
@@ -30,19 +31,31 @@ function isItWet($co) {
 	curl_close($cu);
 
 	$pxl = imagecreatefromstring($res);
+
+	/* If you want to see you can print image to screen
+	ob_start();
+	imagepng($pxl);
+	$image =  ob_get_contents();
+	ob_end_clean();
+	echo '<img src='data:image/png;base64,'.base64_encode($image).'' />';
+	*/
+
+	$googleWetColor = '170,218,255';
+	$googleErrorColor = '224,224,224';
+
 	$hexaColor = imagecolorat($pxl,0,1);
 	$color_rgb = imagecolorsforindex($pxl, $hexaColor);
 	imagedestroy($pxl);
 
 	$color = $color_rgb['red'].','.$color_rgb['green'].','.$color_rgb['blue'];
 
-	if($color === '224,224,224'){
+	if($color === $googleWetColor){
 	    $type = [
 	    	'error'   => true,
 	    	'message' => 'Google Maps did not respond to your request. Please try again.'
 	    ];
 	}
-	if($color === '163,204,255') {
+	if($color === $googleWetColor) {
 	    $type = [
 			'latitude'      => (float) $lat,
 			'longitude'      => (float) $lng,
