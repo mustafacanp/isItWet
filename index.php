@@ -1,74 +1,76 @@
 <?php
 header('Content-Type: application/json');
 
-if(isset($_GET['coordinates']) && $_GET['coordinates'] !== ''){
-	$c = $_GET['coordinates'];
-	$c = str_replace(' ','',$c);
-	$res = isItWet($c);
-} else {
-	$res = [
-	    	'error'   => true,
-	    	'message' => 'Invalid request. Missing the \'coordinates\' parameter.'
-	    ];
-}
+$API_KEY = "";
 
-echo json_encode($res);
+function isWet($coordinates) {
+	global $API_KEY;
 
+	$coord = explode(',', $coordinates);
+	$lat = $coord[0];
+	$lng = $coord[1];
 
-function isItWet($co) {
+	$GMAPStaticUrl = 'https://maps.googleapis.com/maps/api/staticmap?center='.$lat.','.$lng.'&style=feature:all|element:labels|visibility:off&size=5x5&maptype=roadmap&sensor=false&zoom=23&key='.$API_KEY; 
 
-	$c = explode(',', $co);
-	$lat = $c[0];
-	$lng = $c[1];
+	$chuid = curl_init();
+	curl_setopt($chuid, CURLOPT_URL, $GMAPStaticUrl);   
+	curl_setopt($chuid, CURLOPT_RETURNTRANSFER, TRUE);
+	curl_setopt($chuid, CURLOPT_SSL_VERIFYPEER, FALSE);
+	$data = trim(curl_exec($chuid));
+	curl_close($chuid);
 
-	$gmURL = 'https://maps.googleapis.com/maps/api/staticmap?center='.$lat.','.$lng.'&style=feature:all|element:labels|visibility:off&size=3x3&maptype=roadmap&sensor=false&zoom=23'; 
+	$image = imagecreatefromstring($data);
 
-	$cu = curl_init();
-	curl_setopt($cu, CURLOPT_URL, $gmURL);
-	curl_setopt($cu, CURLOPT_RETURNTRANSFER, TRUE);
-	curl_setopt($cu, CURLOPT_SSL_VERIFYPEER, FALSE);
-	$res = trim(curl_exec($cu));
-	curl_close($cu);
-
-	$pxl = imagecreatefromstring($res);
-
-	/* If you want to see you can print image to screen
 	ob_start();
-	imagepng($pxl);
-	$image =  ob_get_contents();
+	imagepng($image);
+	$contents =  ob_get_contents();
 	ob_end_clean();
-	echo '<img src='data:image/png;base64,'.base64_encode($image).'' />';
-	*/
 
-	$googleWetColor = '170,218,255';
-	$googleErrorColor = '224,224,224';
+	$hexaColor = imagecolorat($image,0,1);
+	$color_tran = imagecolorsforindex($image, $hexaColor);
 
-	$hexaColor = imagecolorat($pxl,0,1);
-	$color_rgb = imagecolorsforindex($pxl, $hexaColor);
-	imagedestroy($pxl);
+	imagedestroy($image);
 
-	$color = $color_rgb['red'].','.$color_rgb['green'].','.$color_rgb['blue'];
+	$red = $color_tran['red'];
+	$green = $color_tran['green'];
+	$blue = $color_tran['blue'];
 
-	if($color === $googleWetColor){
+	$color = $red.','.$green.','.$blue;
+
+	if ($color == '224,224,224'){
 	    $type = [
 	    	'error'   => true,
-	    	'message' => 'Google Maps did not respond to your request. Please try again.'
+	    	'message' => 'Please try again.'
 	    ];
 	}
-	if($color === $googleWetColor) {
+
+	if ($color == '170,218,255') {
 	    $type = [
-			'latitude'      => (float) $lat,
-			'longitude'      => (float) $lng,
+			'latitude'  => (float) $lat,
+			'longitude' => (float) $lng,
 			'is_wet' => true
 	    ];
 	} else {
 	    $type = [
-			'latitude'      => (float) $lat,
-			'longitude'      => (float) $lng,
+			'latitude'  => (float) $lat,
+			'longitude' => (float) $lng,
 			'is_wet' => false
 	    ];
 	}
 
 	return $type;
 }
+
+if (isset($_GET['coordinates']) && $_GET['coordinates'] !== ''){
+	$coordinates = $_GET['coordinates'];
+	$coordinates = str_replace(" ","",$coordinates);
+	$response = isWet($coordinates);
+} else {
+	$response = [
+	    	'error'   => true,
+	    	'message' => 'Invalid request. Missing the \'coordinates\' parameter.'
+	    ];
+}
+
+echo json_encode($response);
 ?>
